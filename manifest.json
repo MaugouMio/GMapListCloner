@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Google Maps List Cloner",
+  "version": "1.0",
+  "description": "一鍵複製 Google Maps 共享清單到自己的帳戶中",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.google.com/maps/*",
+    "https://*.google.com.tw/maps/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "GMap List Cloner"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.google.com/maps/*",
+        "https://*.google.com.tw/maps/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

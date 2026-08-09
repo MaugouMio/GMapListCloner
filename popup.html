@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Maps List Cloner</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo-icon">🗺️</div>
+      <h1>GMap List Cloner</h1>
+    </header>
+
+    <main class="app-content">
+      <!-- 1. 偵測/載入中狀態 -->
+      <div id="state-loading" class="state-view">
+        <div class="spinner"></div>
+        <p>正在偵測 Google Maps 頁面...</p>
+      </div>
+
+      <!-- 2. 錯誤狀態 (非 Google Maps 頁面) -->
+      <div id="state-error" class="state-view hidden">
+        <div class="alert-icon">⚠️</div>
+        <h3>未偵測到清單頁面</h3>
+        <p>請在瀏覽器中切換至 Google Maps 的共享清單頁面。</p>
+        <div class="help-box">
+          <p class="small-text">例如：含有 <code>/maps/playlist/...</code> 或 <code>/maps/list/...</code> 的 URL，或是展開後的共享連結。</p>
+        </div>
+      </div>
+
+      <!-- 3. 準備複製狀態 (偵測到清單) -->
+      <div id="state-ready" class="state-view hidden">
+        <div class="list-summary-card">
+          <div class="list-info">
+            <span class="info-label">來源清單</span>
+            <h3 id="source-list-name" class="list-title">載入中...</h3>
+            <span id="source-place-count" class="place-tag">0 個地點</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="target-list-name">新清單名稱</label>
+          <input type="text" id="target-list-name" placeholder="輸入在您帳戶中建立的清單名稱">
+        </div>
+
+        <button id="btn-start-clone" class="btn btn-primary">
+          <span class="btn-text">複製此清單</span>
+          <span class="btn-icon">✨</span>
+        </button>
+      </div>
+
+      <!-- 4. 複製進度狀態 -->
+      <div id="state-progress" class="state-view hidden">
+        <div class="progress-header">
+          <span id="progress-status-text">正在複製地點...</span>
+          <span id="progress-percentage">0%</span>
+        </div>
+        
+        <div class="progress-bar-container">
+          <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
+        </div>
+
+        <div class="progress-details">
+          <span id="progress-fraction">0 / 0 已儲存</span>
+        </div>
+
+        <div class="current-item-box">
+          <span class="small-label">當前處理：</span>
+          <p id="progress-current-item">-</p>
+        </div>
+
+        <button id="btn-cancel-clone" class="btn btn-danger">
+          <span>停止複製</span>
+        </button>
+      </div>
+
+      <!-- 5. 完成狀態 -->
+      <div id="state-done" class="state-view hidden">
+        <div class="success-icon">🎉</div>
+        <h3>清單複製成功！</h3>
+        <p id="success-message">已將所有地點成功儲存至您的新清單。</p>
+        
+        <a href="https://www.google.com/saved" target="_blank" class="btn btn-secondary">
+          <span>前往我的儲存清單</span>
+        </a>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <p>GMap List Cloner v1.0 • 使用前請保持 Google 登入狀態</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
