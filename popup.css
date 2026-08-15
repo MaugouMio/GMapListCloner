@@ -283,6 +283,32 @@ h1 {
   color: var(--text-accent);
 }
 
+/* Start State */
+.start-icon {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 12px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.guide-box {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-step {
+  font-size: 13px !important;
+  color: var(--text-muted) !important;
+  text-align: left !important;
+  line-height: 1.4;
+}
+
 /* Success State */
 .success-icon {
   font-size: 48px;

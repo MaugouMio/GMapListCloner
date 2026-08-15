@@ -14,10 +14,25 @@
     </header>
 
     <main class="app-content">
+      <!-- 0. 初始引導狀態 -->
+      <div id="state-start" class="state-view">
+        <div class="start-icon">🗺️</div>
+        <h3>開始複製清單</h3>
+        <div class="guide-box">
+          <p class="guide-step">1. 請確保瀏覽器已登入您的 Google 帳戶。</p>
+          <p class="guide-step">2. 切換/開啟您想要複製的 Google Maps 共享清單分頁。</p>
+          <p class="guide-step">3. 點擊下方按鈕開始擷取地點。</p>
+        </div>
+        <button id="btn-fetch-list" class="btn btn-primary">
+          <span class="btn-text">開始擷取清單</span>
+          <span class="btn-icon">📋</span>
+        </button>
+      </div>
+
       <!-- 1. 偵測/載入中狀態 -->
-      <div id="state-loading" class="state-view">
+      <div id="state-loading" class="state-view hidden">
         <div class="spinner"></div>
-        <p>正在偵測 Google Maps 頁面...</p>
+        <p>正在擷取頁面地點，請稍後...</p>
       </div>
 
       <!-- 2. 錯誤狀態 (非 Google Maps 頁面) -->

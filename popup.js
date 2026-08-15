@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
   // UI 元素
+  const stateStart = document.getElementById('state-start');
   const stateLoading = document.getElementById('state-loading');
   const stateError = document.getElementById('state-error');
   const stateReady = document.getElementById('state-ready');
@@ -10,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sourcePlaceCount = document.getElementById('source-place-count');
   const targetListNameInput = document.getElementById('target-list-name');
 
+  const btnFetchList = document.getElementById('btn-fetch-list');
   const btnStartClone = document.getElementById('btn-start-clone');
   const btnCancelClone = document.getElementById('btn-cancel-clone');
 
@@ -21,13 +23,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 切換視圖
   function showState(state) {
+    stateStart.classList.add('hidden');
     stateLoading.classList.add('hidden');
     stateError.classList.add('hidden');
     stateReady.classList.add('hidden');
     stateProgress.classList.add('hidden');
     stateDone.classList.add('hidden');
 
-    if (state === 'loading') stateLoading.classList.remove('hidden');
+    if (state === 'start') stateStart.classList.remove('hidden');
+    else if (state === 'loading') stateLoading.classList.remove('hidden');
     else if (state === 'error') stateError.classList.remove('hidden');
     else if (state === 'ready') stateReady.classList.remove('hidden');
     else if (state === 'progress') stateProgress.classList.remove('hidden');
@@ -77,6 +81,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    showState('start');
+  }
+
+  // 開始擷取清單按鈕事件
+  btnFetchList.addEventListener('click', async () => {
     // 獲取當前分頁
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.url) {
@@ -88,6 +97,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isGMap = tab.url.includes('/maps/') && tab.url.includes('google.');
     if (!isGMap) {
       showState('error');
+      const errorP = stateError.querySelector('p');
+      if (errorP) errorP.innerHTML = '請在瀏覽器中切換至 Google Maps 的共享清單頁面。';
       return;
     }
 
@@ -129,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
       showState('error');
     }
-  }
+  });
 
   // 開始複製按鈕事件
   btnStartClone.addEventListener('click', async () => {
