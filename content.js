@@ -90,20 +90,17 @@ async function runSaveFlow(targetListName) {
   // 2. 點擊儲存按鈕
   console.log('[Cloner] 點擊儲存按鈕');
   saveBtn.click();
-  await delay(1200); // 等待彈窗開啟
 
   // 3. 等待儲存彈窗出現
   let dialog = null;
-  for (let i = 0; i < 10; i++) {
-    dialog = getSaveDialogContainer();
-    if (dialog) break;
-    await delay(400);
-  }
-
-  if (!dialog) {
-    console.warn('[Cloner] 儲存清單彈窗未開啟，嘗試重新點擊一次');
+  while (!dialog) {
+    for (let i = 0; i < 10; i++) {
+      dialog = getSaveDialogContainer();
+      if (dialog) break;
+      await delay(300);
+    }
+    console.log('[Cloner] 儲存清單未出現，再次點擊儲存按鈕');
     saveBtn.click();
-    await delay(1500);
   }
 
   // 4. 尋找目標清單
@@ -117,7 +114,7 @@ async function runSaveFlow(targetListName) {
       console.log('[Cloner] 點擊勾選清單');
       listRow.click();
       // 等待儲存完成（按鈕文字改變）
-      for (let i = 0; i < 20; i++) {
+      while (true) {
         if (saveBtn.getAttribute('aria-label') !== currentSaveLabel) {
           break;
         }

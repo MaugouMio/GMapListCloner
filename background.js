@@ -4,7 +4,7 @@ let activeTabs = new Set();
 let watchdogTimers = new Map();
 let tabGroupId = null;
 
-const WATCHDOG_TIMEOUT = 120000; // 120 秒超時
+const WATCHDOG_TIMEOUT = 60000; // 60 秒超時
 const MAX_CONCURRENCY = 10;     // 一次最多開 10 個分頁
 
 // 啟動平行複製處理
