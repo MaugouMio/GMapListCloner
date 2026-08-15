@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const data = await chrome.storage.local.get([
       'cloningState',
       'places',
-      'currentIndex',
+      'completedCount',
       'targetListName',
       'currentPlaceName',
       'errorMessage'
@@ -48,14 +48,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (data.cloningState === 'saving') {
       showState('progress');
       const total = data.places ? data.places.length : 0;
-      const current = data.currentIndex || 0;
-      const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+      const completed = data.completedCount || 0;
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
       progressPercentage.textContent = `${pct}%`;
       progressBarFill.style.width = `${pct}%`;
-      progressFraction.textContent = `${current} / ${total} 已儲存`;
+      progressFraction.textContent = `${completed} / ${total} 已儲存`;
       progressCurrentItem.textContent = data.currentPlaceName || '正在準備中...';
-      progressStatusText.textContent = `正在複製地點 (${current + 1}/${total})...`;
+      progressStatusText.textContent = `正在複製地點 (${Math.min(completed + 1, total)}/${total})...`;
     } else if (data.cloningState === 'done') {
       showState('done');
       // 清除狀態以防下次重複顯示

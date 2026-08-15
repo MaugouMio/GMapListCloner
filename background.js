@@ -1,152 +1,176 @@
 // background.js
 
-let currentTabId = null;
-let watchdogTimer = null;
-const WATCHDOG_TIMEOUT = 25000; // 25 秒超時，給予足夠的載入與操作時間
+let activeTabs = new Set();
+let watchdogTimers = new Map();
+let tabGroupId = null;
 
-// 開始處理下一個地點
-async function processNextPlace() {
-  clearWatchdog();
+const WATCHDOG_TIMEOUT = 120000; // 120 秒超時
+const MAX_CONCURRENCY = 10;     // 一次最多開 10 個分頁
 
+// 啟動平行複製處理
+async function spawnWorkers() {
   const data = await chrome.storage.local.get(['cloningState', 'places', 'currentIndex', 'targetListName']);
-  
+
   if (data.cloningState !== 'saving') {
-    return; // 已被取消或處於其他狀態
+    return; // 非儲存中狀態就退出
   }
 
   const places = data.places || [];
-  const index = data.currentIndex || 0;
+  let index = data.currentIndex || 0;
 
-  if (index >= places.length) {
-    // 所有地點皆已複製完成
-    await chrome.storage.local.set({ cloningState: 'done' });
-    currentTabId = null;
-    return;
-  }
+  // 當目前執行的分頁數少於最大併發數，且還有地點未處理時，繼續開新分頁
+  while (activeTabs.size < MAX_CONCURRENCY && index < places.length) {
+    const currentPlace = places[index];
+    index++;
 
-  const currentPlace = places[index];
-  
-  // 更新當前儲存的地點名稱與索引
-  await chrome.storage.local.set({
-    currentPlaceName: currentPlace.name,
-    currentIndex: index
-  });
+    // 立即更新 currentIndex，避免其他平行程序拿到重複的索引
+    await chrome.storage.local.set({ currentIndex: index });
 
-  console.log(`[Cloner] 正在複製 (${index + 1}/${places.length}): ${currentPlace.name}`);
+    console.log(`[Cloner] 啟動平行複製 (${index}/${places.length}): ${currentPlace.name}`);
 
-  // 建立後台分頁 (active: false 代表不搶焦點)
-  chrome.tabs.create({ url: currentPlace.url, active: false }, (tab) => {
+    // 建立後台分頁 (active: false)
+    const tab = await chrome.tabs.create({ url: currentPlace.url, active: false });
     if (chrome.runtime.lastError || !tab) {
-      console.error('[Cloner] 無法建立分頁，跳至下一個', chrome.runtime.lastError);
-      skipToNext();
+      console.error('[Cloner] 無法建立分頁，嘗試下一個', chrome.runtime.lastError);
+      handleTabFinished(null); // 回報完成以推進佇列
       return;
     }
-    
-    currentTabId = tab.id;
-    
-    // 設定看門狗定時器，避免分頁卡死或載入失敗
-    startWatchdog(tab.id);
-  });
-}
 
-// 跳過當前並處理下一個（用於錯誤或超時）
-async function skipToNext() {
-  const data = await chrome.storage.local.get(['currentIndex']);
-  const nextIndex = (data.currentIndex || 0) + 1;
-  await chrome.storage.local.set({ currentIndex: nextIndex });
-  processNextPlace();
-}
+    const tabId = tab.id;
+    activeTabs.add(tabId);
 
-// 看門狗：超時自動關閉分頁並處理下一個
-function startWatchdog(tabId) {
-  clearWatchdog();
-  watchdogTimer = setTimeout(async () => {
-    console.warn(`[Cloner] 分頁 ${tabId} 處理超時，自動跳過`);
+    // 加入專屬的分頁群組
     try {
-      // 檢查分頁是否還在，在的話就關閉
-      chrome.tabs.get(tabId, (tab) => {
-        if (!chrome.runtime.lastError && tab) {
-          chrome.tabs.remove(tabId);
-        }
-      });
-    } catch (e) {
-      console.error(e);
+      if (tabGroupId === null) {
+        // 如果群組還不存在，將此分頁打包建立新群組
+        tabGroupId = await chrome.tabs.group({ tabIds: [tabId] });
+        await chrome.tabGroups.update(tabGroupId, {
+          title: 'GMap Cloner (複製中)',
+          color: 'purple'
+        });
+      } else {
+        // 加入現有的群組
+        await chrome.tabs.group({ groupId: tabGroupId, tabIds: [tabId] });
+      }
+    } catch (err) {
+      console.warn('[Cloner] 分頁分組失敗 (可能瀏覽器不支援群組功能):', err);
     }
-    skipToNext();
-  }, WATCHDOG_TIMEOUT);
-}
 
-function clearWatchdog() {
-  if (watchdogTimer) {
-    clearTimeout(watchdogTimer);
-    watchdogTimer = null;
+    // 啟動該分頁的看門狗超時器
+    startWatchdogForTab(tabId, currentPlace.name);
+  }
+
+  // 檢查是否全部完成 (當沒有任何活動分頁，且索引也到底時)
+  if (activeTabs.size === 0 && index >= places.length) {
+    console.log('[Cloner] 所有景點複製完成！');
+    await chrome.storage.local.set({ cloningState: 'done' });
+    tabGroupId = null; // 重設群組 ID
   }
 }
 
-// 監聽來自 Popup 或 Content Script 的訊息
+// 處理分頁完成（成功或失敗/超時）
+async function handleTabFinished(tabId) {
+  if (tabId) {
+    clearWatchdogForTab(tabId);
+    activeTabs.delete(tabId);
+
+    // 關閉分頁
+    chrome.tabs.remove(tabId, () => {
+      if (chrome.runtime.lastError) {
+        // 忽略已關閉分頁的錯誤
+      }
+    });
+  }
+
+  // 更新完成計數
+  const storageData = await chrome.storage.local.get(['completedCount']);
+  const completed = (storageData.completedCount || 0) + 1;
+  await chrome.storage.local.set({ completedCount: completed });
+
+  // 推進下一波分頁
+  spawnWorkers();
+}
+
+// 看門狗：單一分頁超時處理
+function startWatchdogForTab(tabId, placeName) {
+  clearWatchdogForTab(tabId);
+  const timer = setTimeout(() => {
+    console.warn(`[Cloner] 分頁 ${tabId} (${placeName}) 處理超時，自動跳過`);
+    handleTabFinished(tabId);
+  }, WATCHDOG_TIMEOUT);
+  watchdogTimers.set(tabId, timer);
+}
+
+function clearWatchdogForTab(tabId) {
+  if (watchdogTimers.has(tabId)) {
+    clearTimeout(watchdogTimers.get(tabId));
+    watchdogTimers.delete(tabId);
+  }
+}
+
+function clearAllWatchdogs() {
+  for (const timer of watchdogTimers.values()) {
+    clearTimeout(timer);
+  }
+  watchdogTimers.clear();
+}
+
+// 監聽各組件訊息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'startCloning') {
-    // 初始化複製狀態
+    clearAllWatchdogs();
+    activeTabs.clear();
+    tabGroupId = null;
+
     chrome.storage.local.set({
       cloningState: 'saving',
       places: message.places,
       currentIndex: 0,
+      completedCount: 0,
       targetListName: message.targetListName,
-      currentPlaceName: message.places[0]?.name || ''
+      currentPlaceName: '正在啟動併發處理...'
     }).then(() => {
-      processNextPlace();
+      spawnWorkers();
     });
     sendResponse({ success: true });
-  } 
-  
+  }
+
   else if (message.action === 'cancelCloning') {
-    clearWatchdog();
+    clearAllWatchdogs();
     chrome.storage.local.set({ cloningState: 'idle' });
-    if (currentTabId) {
-      chrome.tabs.remove(currentTabId, () => {
-        if (chrome.runtime.lastError) {
-          // 忽略已關閉分頁的錯誤
-        }
-      });
-      currentTabId = null;
-    }
-    sendResponse({ success: true });
-  } 
-  
-  else if (message.action === 'checkIfCloningTab') {
-    // 檢查這個載入的 content.js 是否為我們用來複製的後台分頁
-    chrome.storage.local.get(['cloningState', 'targetListName', 'currentIndex', 'places']).then((data) => {
-      const isCloning = data.cloningState === 'saving' && sender.tab && sender.tab.id === currentTabId;
-      sendResponse({
-        isCloningTab: isCloning,
-        targetListName: data.targetListName,
-        index: data.currentIndex,
-        total: data.places ? data.places.length : 0
-      });
-    });
-    return true; // 非同步回應
-  } 
-  
-  else if (message.action === 'placeSaved') {
-    if (sender.tab && sender.tab.id === currentTabId) {
-      clearWatchdog();
-      
-      // 關閉完成儲存的分頁
-      chrome.tabs.remove(sender.tab.id, () => {
+
+    // 關閉所有複製中分頁
+    if (activeTabs.size > 0) {
+      chrome.tabs.remove(Array.from(activeTabs), () => {
         if (chrome.runtime.lastError) {
           // 忽略錯誤
         }
       });
-      currentTabId = null;
+      activeTabs.clear();
+    }
+    tabGroupId = null;
+    sendResponse({ success: true });
+  }
 
-      // 索引遞增並處理下一個
-      chrome.storage.local.get(['currentIndex']).then((data) => {
-        const nextIndex = (data.currentIndex || 0) + 1;
-        chrome.storage.local.set({ currentIndex: nextIndex }).then(() => {
-          // 延遲一點點時間再處理下一個，模擬人為操作也給 Google Maps 一點反應時間
-          setTimeout(processNextPlace, 1000);
-        });
+  else if (message.action === 'checkIfCloningTab') {
+    chrome.storage.local.get(['cloningState', 'targetListName', 'completedCount', 'places']).then((data) => {
+      const isCloning = data.cloningState === 'saving' && sender.tab && activeTabs.has(sender.tab.id);
+      sendResponse({
+        isCloningTab: isCloning,
+        targetListName: data.targetListName,
+        index: data.completedCount || 0,
+        total: data.places ? data.places.length : 0
       });
+    });
+    return true; // 異步回應
+  }
+
+  else if (message.action === 'placeSaved') {
+    if (sender.tab && activeTabs.has(sender.tab.id)) {
+      // 成功儲存後，延遲 300ms 關閉，給予 Google Maps 背景寫入資料庫時間
+      setTimeout(() => {
+        handleTabFinished(sender.tab.id);
+      }, 300);
     }
     sendResponse({ success: true });
   }

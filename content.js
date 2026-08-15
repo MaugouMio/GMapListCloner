@@ -72,18 +72,12 @@ async function runSaveFlow(targetListName) {
   targetListName = 'temp2';
   console.log('[Cloner] 啟動自動儲存流程，目標清單：', targetListName);
 
-  // 1. 等待儲存按鈕出現 (最多等待 10 秒)
+  // 1. 等待儲存按鈕出現 (有可能遇到機器人驗證，要手動處理，所以不設上限時間)
   let saveBtn = null;
-  for (let i = 0; i < 20; i++) {
+  while (true) {
     saveBtn = findSaveButton();
     if (saveBtn) break;
     await delay(500);
-  }
-
-  if (!saveBtn) {
-    console.error('[Cloner] 找不到儲存按鈕，流程中止');
-    chrome.runtime.sendMessage({ action: 'placeSaved', success: false, error: 'Cannot find Save button' });
-    return;
   }
   const currentSaveLabel = saveBtn.getAttribute('aria-label');
 

@@ -5,7 +5,8 @@
   "description": "一鍵複製 Google Maps 共享清單到自己的帳戶中",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "tabGroups"
   ],
   "host_permissions": [
     "https://*.google.com/maps/*",
