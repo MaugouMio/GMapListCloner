@@ -69,7 +69,6 @@ function findListRow(dialog, targetName) {
 
 // 執行儲存自動化流程
 async function runSaveFlow(targetListName) {
-  targetListName = 'temp2';
   console.log('[Cloner] 啟動自動儲存流程，目標清單：', targetListName);
 
   // 1. 等待儲存按鈕出現 (有可能遇到機器人驗證，要手動處理，所以不設上限時間)
@@ -95,7 +94,7 @@ async function runSaveFlow(targetListName) {
   }
 
   if (!dialog) {
-    console.error('[Cloner] 儲存清單彈窗未開啟，嘗試重新點擊一次');
+    console.warning('[Cloner] 儲存清單彈窗未開啟，嘗試重新點擊一次');
     saveBtn.click();
     await delay(1500);
   }
@@ -123,7 +122,7 @@ async function runSaveFlow(targetListName) {
   } else {
     // 5. 找不到清單，終止流程
     console.log('[Cloner] 未找到目標清單');
-    chrome.runtime.sendMessage({ action: 'placeSaved', success: false, error: 'Cannot find target list' });
+    chrome.runtime.sendMessage({ action: 'placeSaved', success: false, error: '找不到目標清單' });
     return;
   }
 

@@ -74,12 +74,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (data.scrapedPlaces && data.scrapedPlaces.length > 0) {
         sourceListName.textContent = data.scrapedListName || '未命名清單';
         sourcePlaceCount.textContent = `${data.scrapedPlaces.length} 個地點`;
-
-        // 預設新清單名稱為：原清單名 - 副本
-        const defaultName = (data.scrapedListName || '未命名清單') + ' - 副本';
-        if (!targetListNameInput.value.trim() || targetListNameInput.value.includes(' - 副本')) {
-          targetListNameInput.value = defaultName;
-        }
+        // 清空匯入清單名稱，讓使用者自己輸入
+        targetListNameInput.value = '';
 
         showState('ready');
       } else {
@@ -219,6 +215,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
       updateUIFromStorage();
+    }
+  });
+
+  // 監聽來自 background 的訊息
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'cloneError') {
+      showState('error');
+      if (errorTitle) errorTitle.textContent = message.error;
+      if (errorMessageText) errorMessageText.innerHTML = '複製過程中發生錯誤，已停止複製程序。';
     }
   });
 

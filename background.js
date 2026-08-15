@@ -115,6 +115,22 @@ function clearAllWatchdogs() {
   watchdogTimers.clear();
 }
 
+function cancelCloning() {
+  clearAllWatchdogs();
+  chrome.storage.local.set({ cloningState: 'idle' });
+
+  // 關閉所有複製中分頁
+  if (activeTabs.size > 0) {
+    chrome.tabs.remove(Array.from(activeTabs), () => {
+      if (chrome.runtime.lastError) {
+        // 忽略錯誤
+      }
+    });
+    activeTabs.clear();
+  }
+  tabGroupId = null;
+}
+
 // 監聽各組件訊息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'startCloning') {
@@ -136,19 +152,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   else if (message.action === 'cancelCloning') {
-    clearAllWatchdogs();
-    chrome.storage.local.set({ cloningState: 'idle' });
-
-    // 關閉所有複製中分頁
-    if (activeTabs.size > 0) {
-      chrome.tabs.remove(Array.from(activeTabs), () => {
-        if (chrome.runtime.lastError) {
-          // 忽略錯誤
-        }
-      });
-      activeTabs.clear();
-    }
-    tabGroupId = null;
+    cancelCloning();
     sendResponse({ success: true });
   }
 
@@ -166,6 +170,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   else if (message.action === 'placeSaved') {
+    if (!message.success) {
+      console.warning('[Cloner] 儲存失敗：', message.error);
+      cancelCloning();
+      chrome.runtime.sendMessage({ action: 'cloneError', error: message.error });
+      return;
+    }
+
     if (sender.tab && activeTabs.has(sender.tab.id)) {
       // 成功儲存後，延遲 300ms 關閉，給予 Google Maps 背景寫入資料庫時間
       setTimeout(() => {
