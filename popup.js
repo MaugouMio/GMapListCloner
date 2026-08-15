@@ -12,8 +12,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const targetListNameInput = document.getElementById('target-list-name');
 
   const btnFetchList = document.getElementById('btn-fetch-list');
+  const btnCancelScrape = document.getElementById('btn-cancel-scrape');
+  const btnErrorBack = document.getElementById('btn-error-back');
   const btnStartClone = document.getElementById('btn-start-clone');
   const btnCancelClone = document.getElementById('btn-cancel-clone');
+
+  const errorMessageText = document.getElementById('error-message-text');
+  const errorTitle = document.getElementById('error-title');
 
   const progressStatusText = document.getElementById('progress-status-text');
   const progressPercentage = document.getElementById('progress-percentage');
@@ -46,7 +51,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       'completedCount',
       'targetListName',
       'currentPlaceName',
-      'errorMessage'
+      'errorMessage',
+      'scrapedPlaces',
+      'scrapedListName'
     ]);
 
     if (data.cloningState === 'saving') {
@@ -60,13 +67,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       progressFraction.textContent = `${completed} / ${total} 已儲存`;
       progressCurrentItem.textContent = data.currentPlaceName || '正在準備中...';
       progressStatusText.textContent = `正在複製地點 (${Math.min(completed + 1, total)}/${total})...`;
+    } else if (data.cloningState === 'scraping') {
+      showState('loading');
+    } else if (data.cloningState === 'scraped') {
+      if (data.scrapedPlaces && data.scrapedPlaces.length > 0) {
+        sourceListName.textContent = data.scrapedListName || '未命名清單';
+        sourcePlaceCount.textContent = `${data.scrapedPlaces.length} 個地點`;
+
+        // 預設新清單名稱為：原清單名 - 副本
+        const defaultName = (data.scrapedListName || '未命名清單') + ' - 副本';
+        if (!targetListNameInput.value.trim() || targetListNameInput.value.includes(' - 副本')) {
+          targetListNameInput.value = defaultName;
+        }
+
+        showState('ready');
+      } else {
+        showState('error');
+        if (errorTitle) errorTitle.textContent = '未偵測到清單地點';
+        if (errorMessageText) errorMessageText.textContent = '此頁面未偵測到任何地點，請確定清單中已有景點並已完全載入。';
+        await chrome.storage.local.set({ cloningState: 'idle' });
+      }
     } else if (data.cloningState === 'done') {
       showState('done');
       // 清除狀態以防下次重複顯示
       await chrome.storage.local.set({ cloningState: 'idle' });
     } else if (data.cloningState === 'error') {
       showState('error');
-      // 如果有具體錯誤訊息，可以印在 console 或 alert-text
+      if (errorTitle) errorTitle.textContent = '發生錯誤';
+      if (errorMessageText) errorMessageText.innerHTML = data.errorMessage || '擷取清單時發生未知錯誤，請重試。';
       console.error(data.errorMessage);
       await chrome.storage.local.set({ cloningState: 'idle' });
     }
@@ -74,9 +102,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 初始化：檢查當前分頁與狀態
   async function initialize() {
-    // 先看 background 是否正在執行複製
+    // 檢查 background/content 是否正在執行複製或擷取
     const data = await chrome.storage.local.get(['cloningState']);
-    if (data.cloningState === 'saving') {
+    if (data.cloningState === 'saving' || data.cloningState === 'scraping' || data.cloningState === 'scraped') {
       updateUIFromStorage();
       return;
     }
@@ -90,6 +118,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.url) {
       showState('error');
+      if (errorTitle) errorTitle.textContent = '無法獲取分頁資訊';
+      if (errorMessageText) errorMessageText.textContent = '請確定您已開啟瀏覽器分頁。';
       return;
     }
 
@@ -97,49 +127,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isGMap = tab.url.includes('/maps/') && tab.url.includes('google.');
     if (!isGMap) {
       showState('error');
-      const errorP = stateError.querySelector('p');
-      if (errorP) errorP.innerHTML = '請在瀏覽器中切換至 Google Maps 的共享清單頁面。';
+      if (errorTitle) errorTitle.textContent = '未偵測到清單頁面';
+      if (errorMessageText) errorMessageText.innerHTML = '請在瀏覽器中切換至 Google Maps 的共享清單頁面。';
       return;
     }
 
-    showState('loading');
+    // 設定狀態為 scraping 並開啟載入中畫面
+    await chrome.storage.local.set({ cloningState: 'scraping' });
 
     // 向 content.js 發送抓取清單指令
     try {
       chrome.tabs.sendMessage(tab.id, { action: 'scrapeList' }, async (response) => {
-        // 如果連不上 content.js
+        // 如果連不上 content.js，表示可能需要重新整理
         if (chrome.runtime.lastError || !response) {
-          showState('error');
-          // 顯示需要重新整理的提示
-          const errorP = stateError.querySelector('p');
-          if (errorP) errorP.innerHTML = '無法連線至頁面，請<strong>重新整理該 Google Maps 頁面</strong>後再試一次。';
-          return;
-        }
-
-        if (response.success && response.places && response.places.length > 0) {
-          sourceListName.textContent = response.listName || '未命名清單';
-          sourcePlaceCount.textContent = `${response.places.length} 個地點`;
-
-          // 預設新清單名稱為：原清單名 - 副本
-          const defaultName = (response.listName || '未命名清單') + ' - 副本';
-          targetListNameInput.value = defaultName;
-
-          // 存入臨時儲存區
-          await chrome.storage.local.set({
-            scrapedPlaces: response.places,
-            scrapedListName: response.listName
-          });
-
-          showState('ready');
-        } else {
-          showState('error');
-          const errorP = stateError.querySelector('p');
-          if (errorP) errorP.textContent = '此頁面未偵測到任何地點，請確定清單中已有景點並已完全載入。';
+          // 只有在當前狀態依然是 scraping 時才更新為錯誤，避免 content.js 已非同步更新儲存區的情況
+          const stateData = await chrome.storage.local.get(['cloningState']);
+          if (stateData.cloningState === 'scraping') {
+            await chrome.storage.local.set({
+              cloningState: 'error',
+              errorMessage: '無法連線至頁面，請<strong>重新整理該 Google Maps 頁面</strong>後再試一次。'
+            });
+          }
         }
       });
     } catch (e) {
-      showState('error');
+      await chrome.storage.local.set({
+        cloningState: 'error',
+        errorMessage: '擷取指令傳送失敗，請重新整理該頁面後再試一次。'
+      });
     }
+  });
+
+  // 取消擷取按鈕事件
+  btnCancelScrape.addEventListener('click', async () => {
+    await chrome.storage.local.set({ cloningState: 'idle' });
+    showState('start');
+  });
+
+  // 錯誤返回按鈕事件
+  btnErrorBack.addEventListener('click', async () => {
+    await chrome.storage.local.set({ cloningState: 'idle' });
+    showState('start');
   });
 
   // 開始複製按鈕事件

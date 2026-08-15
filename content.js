@@ -168,6 +168,9 @@ async function restoreOriginalState(originalUrl) {
 
 async function scrapeAndScroll(sendResponse) {
   console.log('[Cloner] 開始滾動並抓取清單中...');
+  // 寫入 scraping 狀態以供 popup 讀取（即使 popup 關閉重開）
+  await chrome.storage.local.set({ cloningState: 'scraping' });
+
   const scrollContainer = findScrollContainer();
   if (scrollContainer) {
     await scrollToBottom(scrollContainer);
@@ -229,22 +232,24 @@ async function scrapeAndScroll(sendResponse) {
   }
 
   // 獲取清單標題
-  let listName = '';
-  const h1 = document.querySelector('h1');
-  if (h1 && h1.textContent && !h1.textContent.includes('Google') && !h1.textContent.includes('地圖')) {
-    listName = h1.textContent.trim();
-  } else {
-    const altTitle = document.querySelector('.fontHeadlineLarge, [role="heading"]');
-    if (altTitle) listName = altTitle.textContent.trim();
-  }
-
-  if (!listName) {
-    listName = document.title.replace(' - Google Maps', '').replace(' - Google 地圖', '').trim();
-  }
-
+  let listName = document.title.replace(' - Google Maps', '').replace(' - Google 地圖', '').trim();
   console.log(`[Cloner] 抓取完成，共 ${places.length} 個地點。清單標題：${listName}`);
+
+  if (places.length > 0) {
+    await chrome.storage.local.set({
+      cloningState: 'scraped',
+      scrapedPlaces: places,
+      scrapedListName: listName || '未命名清單'
+    });
+  } else {
+    await chrome.storage.local.set({
+      cloningState: 'error',
+      errorMessage: '此頁面未偵測到任何地點，請確定清單中已有景點並已完全載入。'
+    });
+  }
+
   sendResponse({
-    success: true,
+    success: places.length > 0,
     listName: listName || '未命名清單',
     places: places
   });

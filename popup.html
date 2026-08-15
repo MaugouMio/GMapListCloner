@@ -33,16 +33,22 @@
       <div id="state-loading" class="state-view hidden">
         <div class="spinner"></div>
         <p>正在擷取頁面地點，請稍後...</p>
+        <button id="btn-cancel-scrape" class="btn btn-secondary" style="margin-top: 16px;">
+          <span>取消擷取</span>
+        </button>
       </div>
 
       <!-- 2. 錯誤狀態 (非 Google Maps 頁面) -->
       <div id="state-error" class="state-view hidden">
         <div class="alert-icon">⚠️</div>
-        <h3>未偵測到清單頁面</h3>
-        <p>請在瀏覽器中切換至 Google Maps 的共享清單頁面。</p>
+        <h3 id="error-title">未偵測到清單頁面</h3>
+        <p id="error-message-text">請在瀏覽器中切換至 Google Maps 的共享清單頁面。</p>
         <div class="help-box">
           <p class="small-text">例如：含有 <code>/maps/playlist/...</code> 或 <code>/maps/list/...</code> 的 URL，或是展開後的共享連結。</p>
         </div>
+        <button id="btn-error-back" class="btn btn-secondary" style="margin-top: 16px;">
+          <span>返回</span>
+        </button>
       </div>
 
       <!-- 3. 準備複製狀態 (偵測到清單) -->
