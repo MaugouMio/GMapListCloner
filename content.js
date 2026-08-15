@@ -185,7 +185,7 @@ async function scrapeAndScroll(sendResponse) {
   const buttons = Array.from(document.querySelectorAll('button.SMP2wb'));
 
   // 獲取清單標題
-  let listName = document.title.replace(' - Google Maps', '').replace(' - Google 地圖', '').trim();
+  const listName = document.title.replace(' - Google Maps', '').replace(' - Google 地圖', '').trim();
 
   if (buttons.length > 0) {
     console.log(`[Cloner] 偵測到有 ${buttons.length} 個景點按鈕 (SMP2wb)，啟動模擬點擊獲取 URL 流程...`);
@@ -209,13 +209,20 @@ async function scrapeAndScroll(sendResponse) {
       let placeUrl = '';
 
       // 等待網址變更為包含 /place/
-      for (let j = 0; j < 100; j++) {
-        await delay(100);
-        if (window.location.href != lastUrl) {
-          placeUrl = window.location.href;
-          lastUrl = placeUrl;
+      for (let j = 0; j < 5; j++) {
+        for (let k = 0; k < 10; k++) {
+          await delay(100);
+          if (window.location.href != lastUrl) {
+            placeUrl = window.location.href;
+            lastUrl = placeUrl;
+            break;
+          }
+        }
+        // 一段時間還沒變再點一次
+        if (placeUrl) {
           break;
         }
+        btn.click();
       }
 
       if (placeUrl) {
