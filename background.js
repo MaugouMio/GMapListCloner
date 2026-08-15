@@ -171,7 +171,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   else if (message.action === 'placeSaved') {
     if (!message.success) {
-      console.warning('[Cloner] 儲存失敗：', message.error);
+      console.warn('[Cloner] 儲存失敗：', message.error);
       cancelCloning();
       chrome.runtime.sendMessage({ action: 'cloneError', error: message.error });
       return;

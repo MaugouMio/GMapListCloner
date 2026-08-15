@@ -101,7 +101,7 @@ async function runSaveFlow(targetListName) {
   }
 
   if (!dialog) {
-    console.warning('[Cloner] 儲存清單彈窗未開啟，嘗試重新點擊一次');
+    console.warn('[Cloner] 儲存清單彈窗未開啟，嘗試重新點擊一次');
     saveBtn.click();
     await delay(1500);
   }
