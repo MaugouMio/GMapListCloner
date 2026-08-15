@@ -2,6 +2,8 @@
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
+let isScrapeCancelled = false;
+
 // ==========================================
 // 作用 A：抓取清單頁面的地點
 // ==========================================
@@ -18,6 +20,11 @@ async function scrollToBottom(container) {
     let attempts = 0;
 
     const interval = setInterval(() => {
+      if (isScrapeCancelled) {
+        clearInterval(interval);
+        resolve();
+        return;
+      }
       container.scrollTop = container.scrollHeight;
 
       const newHeight = container.scrollHeight;
@@ -135,11 +142,14 @@ async function runSaveFlow(targetListName) {
 // 訊息監聽與啟動入口
 // ==========================================
 
-// 監聽 Popup 的抓取請求
+// 監聽 Popup 的抓取請求與取消請求
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'scrapeList') {
     scrapeAndScroll(sendResponse);
     return true; // 表示非同步回應
+  } else if (message.action === 'cancelScrape') {
+    isScrapeCancelled = true;
+    sendResponse({ success: true });
   }
 });
 
@@ -167,6 +177,7 @@ async function restoreOriginalState(originalUrl) {
 
 async function scrapeAndScroll(sendResponse) {
   console.log('[Cloner] 開始滾動並抓取清單中...');
+  isScrapeCancelled = false; // 重設取消狀態
   // 寫入 scraping 狀態以供 popup 讀取（即使 popup 關閉重開）
   await chrome.storage.local.set({ cloningState: 'scraping' });
 
@@ -175,6 +186,13 @@ async function scrapeAndScroll(sendResponse) {
     await scrollToBottom(scrollContainer);
   } else {
     console.warn('[Cloner] 未找到明顯滾動容器，將直接讀取畫面上現有地點');
+  }
+
+  if (isScrapeCancelled) {
+    console.log('[Cloner] 擷取已被取消，終止程序');
+    await chrome.storage.local.set({ cloningState: 'idle' });
+    sendResponse({ success: false, error: '擷取已被取消' });
+    return;
   }
 
   const places = [];
@@ -192,6 +210,9 @@ async function scrapeAndScroll(sendResponse) {
 
     let lastUrl = originalListUrl;
     for (let i = 0; i < buttons.length; i++) {
+      if (isScrapeCancelled) {
+        break;
+      }
       const btn = buttons[i];
       let name = btn.getAttribute('aria-label') || btn.textContent || '';
       name = name.trim();
@@ -210,6 +231,7 @@ async function scrapeAndScroll(sendResponse) {
       // 等待網址變更為包含 /place/
       for (let j = 0; j < 5; j++) {
         for (let k = 0; k < 10; k++) {
+          if (isScrapeCancelled) break;
           await delay(100);
           if (window.location.href != lastUrl) {
             placeUrl = window.location.href;
@@ -217,12 +239,15 @@ async function scrapeAndScroll(sendResponse) {
             break;
           }
         }
+        if (isScrapeCancelled) break;
         // 一段時間還沒變再點一次
         if (placeUrl) {
           break;
         }
         btn.click();
       }
+
+      if (isScrapeCancelled) break;
 
       if (placeUrl) {
         if (!placesMap.has(placeUrl)) {
@@ -238,6 +263,13 @@ async function scrapeAndScroll(sendResponse) {
     // 恢復到原始清單頁面
     console.log('[Cloner] 正在恢復原始清單頁面狀態...');
     await restoreOriginalState(originalListUrl);
+  }
+
+  if (isScrapeCancelled) {
+    console.log('[Cloner] 擷取已被取消，終止程序');
+    await chrome.storage.local.set({ cloningState: 'idle' });
+    sendResponse({ success: false, error: '擷取已被取消' });
+    return;
   }
 
   console.log(`[Cloner] 抓取完成，共 ${places.length} 個地點。清單標題：${listName}`);

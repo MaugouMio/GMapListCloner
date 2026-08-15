@@ -129,8 +129,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // 設定狀態為 scraping 並開啟載入中畫面
-    await chrome.storage.local.set({ cloningState: 'scraping' });
+    // 設定狀態為 scraping 並記錄 tab.id
+    await chrome.storage.local.set({ 
+      cloningState: 'scraping',
+      scrapeTabId: tab.id
+    });
 
     // 向 content.js 發送抓取清單指令
     try {
@@ -142,7 +145,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (stateData.cloningState === 'scraping') {
             await chrome.storage.local.set({
               cloningState: 'error',
-              errorMessage: '無法連線至頁面，請<strong>重新整理該 Google Maps 頁面</strong>後再試一次。'
+              errorMessage: '無法連線至頁面，請<strong>重新整理該 Google Maps 頁面</strong>後再試一次。',
+              scrapeTabId: null
             });
           }
         }
@@ -150,14 +154,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
       await chrome.storage.local.set({
         cloningState: 'error',
-        errorMessage: '擷取指令傳送失敗，請重新整理該頁面後再試一次。'
+        errorMessage: '擷取指令傳送失敗，請重新整理該頁面後再試一次。',
+        scrapeTabId: null
       });
     }
   });
 
   // 取消擷取按鈕事件
   btnCancelScrape.addEventListener('click', async () => {
-    await chrome.storage.local.set({ cloningState: 'idle' });
+    // 發送取消指令給儲存的分頁
+    const data = await chrome.storage.local.get(['scrapeTabId']);
+    if (data.scrapeTabId) {
+      chrome.tabs.sendMessage(data.scrapeTabId, { action: 'cancelScrape' }, () => {
+        // 忽略錯誤，以防 content.js 未載入
+        if (chrome.runtime.lastError) {}
+      });
+    }
+    await chrome.storage.local.set({ cloningState: 'idle', scrapeTabId: null });
     showState('start');
   });
 
