@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 設定狀態為 scraping 並記錄 tab.id
-    await chrome.storage.local.set({ 
+    await chrome.storage.local.set({
       cloningState: 'scraping',
       scrapeTabId: tab.id
     });
@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (data.scrapeTabId) {
       chrome.tabs.sendMessage(data.scrapeTabId, { action: 'cancelScrape' }, () => {
         // 忽略錯誤，以防 content.js 未載入
-        if (chrome.runtime.lastError) {}
+        if (chrome.runtime.lastError) { }
       });
     }
     await chrome.storage.local.set({ cloningState: 'idle', scrapeTabId: null });
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnStartClone.addEventListener('click', async () => {
     const targetName = targetListNameInput.value.trim();
     if (!targetName) {
-      alert('請輸入新清單名稱！');
+      alert('請輸入匯入清單名稱！');
       return;
     }
 
