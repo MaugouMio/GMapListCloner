@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnFetchList = document.getElementById('btn-fetch-list');
   const btnCancelScrape = document.getElementById('btn-cancel-scrape');
   const btnErrorBack = document.getElementById('btn-error-back');
+  const btnCancelReady = document.getElementById('btn-cancel-ready');
   const btnStartClone = document.getElementById('btn-start-clone');
   const btnCancelClone = document.getElementById('btn-cancel-clone');
 
@@ -202,6 +203,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnCancelClone.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'cancelCloning' });
     showState('ready');
+  });
+
+  // 取消準備複製狀態，返回主畫面
+  btnCancelReady.addEventListener('click', async () => {
+    await chrome.storage.local.set({
+      cloningState: 'idle',
+      scrapedPlaces: [],
+      scrapedListName: ''
+    });
+    showState('start');
   });
 
   // 監聽來自 background 的 storage 變更

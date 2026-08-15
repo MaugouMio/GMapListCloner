@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Google Maps List Cloner</title>
   <link rel="stylesheet" href="popup.css">
 </head>
+
 <body>
   <div class="app-container">
     <header class="app-header">
@@ -44,7 +46,7 @@
         <h3 id="error-title">未偵測到清單頁面</h3>
         <p id="error-message-text">請在瀏覽器中切換至 Google Maps 的共享清單頁面。</p>
         <div class="help-box">
-          <p class="small-text">例如：含有 <code>/maps/playlist/...</code> 或 <code>/maps/list/...</code> 的 URL，或是展開後的共享連結。</p>
+          <p class="small-text">請不要點開任何景點，單純顯示地圖清單的部分。</p>
         </div>
         <button id="btn-error-back" class="btn btn-secondary" style="margin-top: 16px;">
           <span>返回</span>
@@ -70,6 +72,9 @@
           <span class="btn-text">複製此清單</span>
           <span class="btn-icon">✨</span>
         </button>
+        <button id="btn-cancel-ready" class="btn btn-secondary" style="margin-top: 12px;">
+          <span>取消</span>
+        </button>
       </div>
 
       <!-- 4. 複製進度狀態 -->
@@ -78,7 +83,7 @@
           <span id="progress-status-text">正在複製地點...</span>
           <span id="progress-percentage">0%</span>
         </div>
-        
+
         <div class="progress-bar-container">
           <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
         </div>
@@ -102,7 +107,7 @@
         <div class="success-icon">🎉</div>
         <h3>清單複製成功！</h3>
         <p id="success-message">已將所有地點成功儲存至您的新清單。</p>
-        
+
         <a href="https://www.google.com/saved" target="_blank" class="btn btn-secondary">
           <span>前往我的儲存清單</span>
         </a>
@@ -116,4 +121,5 @@
 
   <script src="popup.js"></script>
 </body>
+
 </html>

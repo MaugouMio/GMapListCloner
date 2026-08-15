@@ -184,6 +184,9 @@ async function scrapeAndScroll(sendResponse) {
   // 1. 觀察到列表項目有 SMP2wb 這個獨特 class 類別
   const buttons = Array.from(document.querySelectorAll('button.SMP2wb'));
 
+  // 獲取清單標題
+  let listName = document.title.replace(' - Google Maps', '').replace(' - Google 地圖', '').trim();
+
   if (buttons.length > 0) {
     console.log(`[Cloner] 偵測到有 ${buttons.length} 個景點按鈕 (SMP2wb)，啟動模擬點擊獲取 URL 流程...`);
     const originalListUrl = window.location.href;
@@ -231,8 +234,6 @@ async function scrapeAndScroll(sendResponse) {
     await restoreOriginalState(originalListUrl);
   }
 
-  // 獲取清單標題
-  let listName = document.title.replace(' - Google Maps', '').replace(' - Google 地圖', '').trim();
   console.log(`[Cloner] 抓取完成，共 ${places.length} 個地點。清單標題：${listName}`);
 
   if (places.length > 0) {
