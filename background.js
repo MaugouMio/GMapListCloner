@@ -5,7 +5,7 @@ let activeTabPlaces = new Map();
 let tabGroupId = null;
 
 const WATCHDOG_TIMEOUT = 60000; // 60 秒超時
-const MAX_CONCURRENCY = 10;     // 一次最多開 10 個分頁
+const DEFAULT_CONCURRENCY = 10; // 預設一次最多開 10 個分頁
 
 // 序列化 storage 寫入，避免併發時資料覆蓋
 let storageQueuePromise = Promise.resolve();
@@ -39,7 +39,7 @@ async function spawnWorkers() {
 
   try {
     while (true) {
-      const data = await chrome.storage.local.get(['cloningState', 'places', 'currentIndex']);
+      const data = await chrome.storage.local.get(['cloningState', 'places', 'currentIndex', 'maxConcurrency']);
 
       if (data.cloningState !== 'saving') {
         break; // 非儲存中狀態就退出
@@ -48,8 +48,8 @@ async function spawnWorkers() {
       const places = data.places || [];
       let index = data.currentIndex || 0;
 
-      // 檢查是否符合併發和佇列長度條件
-      if (activeTabPlaces.size >= MAX_CONCURRENCY || index >= places.length) {
+      const maxConcurrency = data.maxConcurrency || DEFAULT_CONCURRENCY;
+      if (activeTabPlaces.size >= maxConcurrency || index >= places.length) {
         break;
       }
 
@@ -195,6 +195,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       currentIndex: 0,
       completedCount: 0,
       targetListName: message.targetListName,
+      maxConcurrency: message.maxConcurrency || DEFAULT_CONCURRENCY,
       currentPlaceName: '正在啟動併發處理...'
     }).then(() => {
       spawnWorkers();

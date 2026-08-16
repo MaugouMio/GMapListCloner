@@ -68,6 +68,11 @@
           <input type="text" id="target-list-name" placeholder="輸入在您帳戶中建立的清單名稱">
         </div>
 
+        <div class="form-group">
+          <label for="concurrency-limit">同時開啟分頁上限 (數量過多可能導致卡頓及儲存失敗)</label>
+          <input type="number" id="concurrency-limit" min="1" max="50" value="10">
+        </div>
+
         <button id="btn-start-clone" class="btn btn-primary">
           <span class="btn-text">複製此清單</span>
           <span class="btn-icon">✨</span>

@@ -30,7 +30,7 @@ async function scrollToBottom(container) {
       const newHeight = container.scrollHeight;
       if (newHeight === lastHeight) {
         attempts++;
-        if (attempts > 20) { // 連續 20 次高度沒有變化，視為已到底部
+        if (attempts > 40) { // 連續 40 次高度沒有變化，視為已到底部
           clearInterval(interval);
           resolve();
         }

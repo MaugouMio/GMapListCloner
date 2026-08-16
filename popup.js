@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sourceListName = document.getElementById('source-list-name');
   const sourcePlaceCount = document.getElementById('source-place-count');
   const targetListNameInput = document.getElementById('target-list-name');
+  const concurrencyLimitInput = document.getElementById('concurrency-limit');
 
   const btnFetchList = document.getElementById('btn-fetch-list');
   const btnCancelScrape = document.getElementById('btn-cancel-scrape');
@@ -76,6 +77,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         sourcePlaceCount.textContent = `${data.scrapedPlaces.length} 個地點`;
         // 清空匯入清單名稱，讓使用者自己輸入
         targetListNameInput.value = '';
+        if (concurrencyLimitInput) {
+          concurrencyLimitInput.value = '10';
+        }
 
         showState('ready');
       } else {
@@ -188,6 +192,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    let maxConcurrency = parseInt(concurrencyLimitInput.value, 10);
+    if (isNaN(maxConcurrency) || maxConcurrency < 1) {
+      alert('請輸入有效的同時開啟分頁上限（大於等於 1）！');
+      return;
+    }
+
     const data = await chrome.storage.local.get(['scrapedPlaces']);
     if (!data.scrapedPlaces || data.scrapedPlaces.length === 0) {
       alert('未找到可複製的地點，請重試！');
@@ -204,7 +214,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.runtime.sendMessage({
       action: 'startCloning',
       targetListName: targetName,
-      places: data.scrapedPlaces
+      places: data.scrapedPlaces,
+      maxConcurrency: maxConcurrency
     });
   });
 
