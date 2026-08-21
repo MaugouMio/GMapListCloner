@@ -52,7 +52,7 @@ function findSaveButton() {
   return buttons.find(btn => {
     const jslog = btn.getAttribute('jslog');
     // 觀察結果，未來 google 可能會改，失效再去看 html 結構有沒有什麼特徵
-    return jslog.includes('13535');
+    return jslog.includes('13535') || jslog.includes('279285');
   });
 }
 
